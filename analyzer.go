@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -9,25 +10,66 @@ import (
 )
 
 func main() {
-	a := NewAnalysis()
+	a := NewAnalysis("corgi", "man")
 	// add async
 	a.AddFile("file.go", src)
 	a.AddFile("file2.go", src2)
 
 	// after ALL files are added
+	a.ConstructGraph()
 
-	fmt.Println(a.Types)
+	bts, err := json.MarshalIndent(&a.Repo, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bts))
+
+	fmt.Println(a.TypesMap)
+	fmt.Println(a.FilesMap)
 }
 
 // Parse file and get types
 
 type Analysis struct {
-	Files map[string]*ast.File
-	Types map[string]string
+	Files    map[string]*ast.File
+	TypesMap map[string]string
+	FilesMap map[string]string
+	Repo     Repository
 }
 
-func NewAnalysis() Analysis {
-	return Analysis{make(map[string]*ast.File), make(map[string]string)}
+type Repository struct {
+	User, Name string
+	Pkgs       map[string]Package
+}
+
+type Package struct {
+	Path, Name string
+	// Fns        map[string]Function
+	Links *[]Link
+}
+
+type Link struct {
+	Source, Target       string
+	SFileName, TFileName string
+	External             bool
+}
+
+// type Function struct { // Will be the nodes
+// 	FileName, PackageName, Name string
+// 	// CallsFrom, CallsTo []*Function
+// }
+
+func NewAnalysis(user, repo string) Analysis {
+	return Analysis{
+		make(map[string]*ast.File),
+		make(map[string]string),
+		make(map[string]string),
+		Repository{
+			User: user,
+			Name: repo,
+			Pkgs: make(map[string]Package),
+		},
+	}
 }
 
 func (a Analysis) AddFile(filename, src string) {
@@ -39,47 +81,23 @@ func (a Analysis) AddFile(filename, src string) {
 		// functions
 		if fun, ok := decl.(*ast.FuncDecl); ok {
 			id, typ := GetDeclInfo(fun, pkgname)
-			a.Types[id] = typ
+			a.TypesMap[pkgname+"."+id] = typ
+			a.FilesMap[id] = filename
 		}
 	}
 }
 
-func ParseFile(file, src string) *ast.File {
-	fset := token.NewFileSet()
-
-	f, err := parser.ParseFile(fset, file, src, 0)
-	if err != nil {
-		fmt.Println(err)
-		return nil
+func (a Analysis) ConstructGraph() {
+	for fname, file := range a.Files {
+		a.AddToGraph(fname, file)
 	}
-	return f
 }
 
-func AddSrcToRepo(src string) {
-
-	fset := token.NewFileSet()
-
-	f, err := parser.ParseFile(fset, "", src, 0)
-	if err != nil {
-		fmt.Println(err)
-		return
+func (a Analysis) AddToGraph(callerfilename string, f *ast.File) {
+	pkg := f.Name.Name
+	if _, ok := a.Repo.Pkgs[pkg]; !ok {
+		a.Repo.Pkgs[pkg] = Package{"path", pkg, &[]Link{}}
 	}
-	// ast.Print(fset, f)
-
-	// get type info from func decls
-	// the type info is used to determin the receiver type in method calls
-	// f().Method() -> we need to know what type f() is. lookup in typemap["pkg.f"]
-	// filename := "placeholder.go"
-	for _, decl := range f.Decls {
-		// functions
-		if fun, ok := decl.(*ast.FuncDecl); ok {
-			id, typ := GetDeclInfo(fun, f.Name.Name)
-			fmt.Println(id, typ)
-		}
-	}
-	fmt.Println()
-
-	// get import packages
 	imports := make([]string, 0)
 	for _, decl := range f.Decls {
 		if gen, ok := decl.(*ast.GenDecl); ok && gen.Tok.String() == "import" {
@@ -92,19 +110,16 @@ func AddSrcToRepo(src string) {
 			}
 		}
 	}
-	// fmt.Println(imports)
-	// fmt.Println()
 
-	// connecting
 	for _, decl := range f.Decls {
 		fdecl, ok := decl.(*ast.FuncDecl)
 		if !ok {
 			continue
 		}
-		pkg := f.Name.Name
+
 		id, _ := GetDeclInfo(fdecl, pkg)
 
-		call_ids := make([]string, 0)
+		// call_ids := make([]string, 0)
 		// inspect func decl for calls
 		ast.Inspect(fdecl, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
@@ -112,31 +127,70 @@ func AddSrcToRepo(src string) {
 				return true
 			}
 
+			fname := ""
 			call_id := ""
+			external := false
 			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+				// call can be external or in package
 				split := strings.Split(GetType(sel.X), ".")
-				external := false
 				for _, imprt := range imports {
 					if imprt == split[0] {
 						external = true
 					}
 				}
-				if external {
 
-					call_id = GetType(sel.X) + "." + sel.Sel.Name
+				typ := ""
+				if external {
+					typ = GetType(sel.X)
+					if t, ok := a.TypesMap[typ]; ok {
+						typ = split[0] + "." + t
+					}
+					fname = split[0]
 				} else {
-					call_id = pkg + "." + GetType(sel.X) + "." + sel.Sel.Name
+					typ = pkg + "." + GetType(sel.X)
+
+					if t, ok := a.TypesMap[typ]; ok {
+						typ = t
+
+					} else {
+						typ = GetType(sel.X)
+						fname = callerfilename
+					}
+					if fn, ok := a.FilesMap[typ+"."+sel.Sel.Name]; ok {
+						fname = fn
+					} else {
+						fname = callerfilename
+					}
+
 				}
 
+				call_id = typ + "." + sel.Sel.Name
 			} else if fun, ok := call.Fun.(*ast.Ident); ok {
-				call_id = pkg + "." + fun.Name
+				call_id = fun.Name
+				fname = callerfilename
 			}
-			call_ids = append(call_ids, call_id)
+			// call_ids = append(call_ids, call_id)
+			ls := a.Repo.Pkgs[pkg].Links
+			*ls = append(*ls, Link{id, call_id, callerfilename, fname, external})
+
 			return true
 		})
 
-		fmt.Println(id, "---", call_ids)
+		// fmt.Println(id, "---", call_ids)
 	}
+}
+
+func ParseFile(file, src string) *ast.File {
+	fset := token.NewFileSet()
+
+	f, err := parser.ParseFile(fset, file, src, 0)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	// ast.Print(fset, f)
+	return f
 }
 
 func GetDeclInfo(fun *ast.FuncDecl, pkg string) (id, typ string) {
@@ -145,7 +199,7 @@ func GetDeclInfo(fun *ast.FuncDecl, pkg string) (id, typ string) {
 		rec = fun.Recv.List[0].Type.(*ast.Ident).Name
 	}
 
-	id = pkg + "."
+	// id = pkg + "."
 	if rec != "" {
 		id += rec + "."
 	}
@@ -159,55 +213,57 @@ func GetDeclInfo(fun *ast.FuncDecl, pkg string) (id, typ string) {
 	return id, typ
 }
 
-func GetType(n interface{}) string {
+func GetType(n interface{}) (s string) {
 	switch e := n.(type) {
 	case *ast.IndexExpr:
-		return GetType(e.X)
+		s = GetType(e.X)
 	case *ast.ParenExpr:
-		return GetType(e.X)
+		s = GetType(e.X)
 	case *ast.SliceExpr:
-		return GetType(e.X)
+		s = GetType(e.X)
 	case *ast.StarExpr:
 		//return "*" + GetType(e.X)
 		// don't care for pointers for this application
-		return GetType(e.X)
+		s = GetType(e.X)
 	case *ast.UnaryExpr:
-		return GetType(e.X)
+		s = GetType(e.X)
 	case *ast.BinaryExpr:
-		return GetType(e.X)
+		s = GetType(e.X)
 	case *ast.Ident:
 		if e.Obj != nil {
-			return GetType(e.Obj.Decl)
+			s = GetType(e.Obj.Decl)
 		} else {
-			return e.Name
+			s = e.Name
 		}
 	case *ast.Field:
-		return GetType(e.Type)
+		s = GetType(e.Type)
 	case *ast.FuncDecl:
-		return GetType(e.Type.Results.List[0].Type)
+		s = GetType(e.Type.Results.List[0].Type)
 	case *ast.TypeSpec:
-		return e.Name.Name
+		s = e.Name.Name
 	case *ast.ValueSpec:
-		return GetType(e.Type)
+		s = GetType(e.Type)
 	case *ast.CallExpr:
 		// if selex, ok := e.Fun(*ast.SelectorExpr); ok {
 		// if selex.X is a package and function "pkg.funname" is not found in type map {
 		// return e.Fun.X + "." + e.Sel.Name + "()"
 		// }
-		return GetType(e.Fun)
+		s = GetType(e.Fun)
 	case *ast.SelectorExpr:
-		return GetType(e.X) + "." + GetType(e.Sel)
+		s = GetType(e.X) + "." + GetType(e.Sel)
 		// case *ast.TypeAssertExpr:
 		//  return GetType(e.X)
 	case *ast.AssignStmt:
-		return GetType(e.Rhs[0])
+		s = GetType(e.Rhs[0])
 	case *ast.ArrayType:
-		return GetType(e.Elt)
+		s = GetType(e.Elt)
+	case *ast.CompositeLit:
+		s = GetType(e.Type)
 	default:
 		fmt.Printf("UnimplementedType: %T\n", n)
 		return "UnimplementedTypeDetection"
 	}
-	return ""
+	return s
 }
 
 var src string = `
@@ -236,13 +292,13 @@ func (a A) Increment() {
 func main() {
     a := A(4)
     a.FFF()
-    b := pack.B{}
+    b := B{}
     b.BBB().CCC()
 }
 `
 
 var src2 string = `
-package pack
+package main
 
 type B struct {}
 type C struct {}
@@ -257,3 +313,87 @@ func (c C) CCC() int {
 
 
 `
+
+// func AddSrcToRepo(src string) {
+
+// 	fset := token.NewFileSet()
+
+// 	f, err := parser.ParseFile(fset, "", src, 0)
+// 	if err != nil {
+// 		fmt.Println(err)
+// 		return
+// 	}
+// 	// ast.Print(fset, f)
+
+// 	// get type info from func decls
+// 	// the type info is used to determin the receiver type in method calls
+// 	// f().Method() -> we need to know what type f() is. lookup in typemap["pkg.f"]
+// 	// filename := "placeholder.go"
+// 	for _, decl := range f.Decls {
+// 		// functions
+// 		if fun, ok := decl.(*ast.FuncDecl); ok {
+// 			id, typ := GetDeclInfo(fun, f.Name.Name)
+// 			fmt.Println(id, typ)
+// 		}
+// 	}
+// 	fmt.Println()
+
+// 	// get import packages
+// 	imports := make([]string, 0)
+// 	for _, decl := range f.Decls {
+// 		if gen, ok := decl.(*ast.GenDecl); ok && gen.Tok.String() == "import" {
+// 			for _, s := range gen.Specs {
+// 				path := s.(*ast.ImportSpec).Path.Value
+// 				path = path[1 : len(path)-1]
+// 				split := strings.Split(path, "/")
+// 				imprt := split[len(split)-1]
+// 				imports = append(imports, imprt)
+// 			}
+// 		}
+// 	}
+// 	// fmt.Println(imports)
+// 	// fmt.Println()
+
+// 	// connecting
+// 	for _, decl := range f.Decls {
+// 		fdecl, ok := decl.(*ast.FuncDecl)
+// 		if !ok {
+// 			continue
+// 		}
+// 		pkg := f.Name.Name
+// 		id, _ := GetDeclInfo(fdecl, pkg)
+
+// 		call_ids := make([]string, 0)
+// 		// inspect func decl for calls
+// 		ast.Inspect(fdecl, func(n ast.Node) bool {
+// 			call, ok := n.(*ast.CallExpr)
+// 			if !ok {
+// 				return true
+// 			}
+
+// 			call_id := ""
+// 			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+// 				split := strings.Split(GetType(sel.X), ".")
+// 				external := false
+// 				for _, imprt := range imports {
+// 					if imprt == split[0] {
+// 						external = true
+// 					}
+// 				}
+// 				if external {
+
+// 					call_id = GetType(sel.X) + "." + sel.Sel.Name
+// 				} else {
+// 					call_id = pkg + "." + GetType(sel.X) + "." + sel.Sel.Name
+// 				}
+
+// 			} else if fun, ok := call.Fun.(*ast.Ident); ok {
+// 				call_id = pkg + "." + fun.Name
+// 			}
+// 			call_ids = append(call_ids, call_id)
+// 			return true
+// 		})
+
+// 		fmt.Println(id, "---", call_ids)
+// 	}
+// }
