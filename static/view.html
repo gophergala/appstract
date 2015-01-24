@@ -2,20 +2,13 @@
 <meta charset="utf-8">
 <style>
 
-#wrapper {
-    /*width: 1000px;*/
-    border: 1px solid black;
-    overflow: hidden; /* will contain if #first is longer than #second */
-}
-#first {
+
+
+#packages {
     /*float:left;*/ /* add this */
     /*border: 1px solid red;*/
     position: absolute;
     left: 100px;
-}
-#second {
-    /*border: 1px solid green;*/
-    /*overflow: hidden;*/ /* if you don't want #second to wrap below #first */
 }
 
 
@@ -54,18 +47,19 @@ text {
 <body>
 <center><h1>AppStract</h1></center>
 
-<div id="first">
-<a onclick='load_graph("pkg1")'>pkg1</a>:<br>
+<div id="packages">
+<!-- HTML TEMPLATE -->
+<a href='user/repo/pkg1'>pkg1</a>:<br>
 -file1.go<br>
 -file2.go<br>
 -file3.go<br>
-<a onclick='load_graph("pkg2")'>pkg2</a>:<br>
+<a href='user/repo/pkg2'>pkg2</a>:<br>
 -file4.go<br>
 -file5.go<br>
-<a onclick='load_graph("pkg3")'>pkg3</a>:<br>
+<a href='user/repo/pkg3'>pkg3</a>:<br>
 -file6.go<br>
 -file7.go<br>
-<a onclick='load_graph("pkg4")'>pkg4</a>:<br>
+<a href='user/repo/pkg4'>pkg4</a>:<br>
 -file8.go<br>
 -file9.go<br>
 
@@ -82,11 +76,13 @@ var width = 960,
 var legend_x = width-150;
     legend_y = height-50;
 
-// init nodesmap[pkg] and linksmap[pkg] in template
+var svg = d3.select("body")
+    .append("center")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
 
-function load_graph(pkg) {
-// get nodes and links from nodesmap[pkg], linksmap[pkg]
-console.log(pkg)
+// HTML TEMPLATE
 var links = [
   {source: "Microsoft", target: "Amazon", filename: "licensing"},
   {source: "Microsoft", target: "HTC", filename: "licensing"},
@@ -144,11 +140,7 @@ var force = d3.layout.force()
     .on("tick", tick)
     .start();
 
-var svg = d3.select("body")
-    .append("center")
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height);
+
 
 // Per-filename markers, as they don't inherit styles.
 svg.append("defs").selectAll("marker")
@@ -220,12 +212,6 @@ function linkArc(d) {
 function transform(d) {
   return "translate(" + d.x + "," + d.y + ")";
 }
-}
-
-
-load_graph("pkg")
-
-
 
 </script>
 </body>
