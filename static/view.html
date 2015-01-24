@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+#wrapper {
+    /*width: 1000px;*/
+    border: 1px solid black;
+    overflow: hidden; /* will contain if #first is longer than #second */
+}
+#first {
+    /*float:left;*/ /* add this */
+    /*border: 1px solid red;*/
+    position: absolute;
+    left: 100px;
+}
+#second {
+    /*border: 1px solid green;*/
+    /*overflow: hidden;*/ /* if you don't want #second to wrap below #first */
+}
+
+
+.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5px;
+  opacity: 0.5;
+}
+
+#licensing {
+  fill: green;
+}
+
+.link.licensing {
+  stroke: green;
+}
+
+.link.resolved {
+  stroke-dasharray: 0,2 1;
+}
+
+circle {
+  /*fill: #ff0000;*/
+  stroke: #333;
+  stroke-width: 1.5px;
+}
+
+text {
+  font: 12px sans-serif;
+  pointer-events: none;
+  text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, 0 -2px 0 #fff, -2px 0 0 #fff, 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+}
+
+</style>
+<body>
+<center><h1>AppStract</h1></center>
+
+<div id="first">
+<a onclick='load_graph("pkg1")'>pkg1</a>:<br>
+-file1.go<br>
+-file2.go<br>
+-file3.go<br>
+<a onclick='load_graph("pkg2")'>pkg2</a>:<br>
+-file4.go<br>
+-file5.go<br>
+<a onclick='load_graph("pkg3")'>pkg3</a>:<br>
+-file6.go<br>
+-file7.go<br>
+<a onclick='load_graph("pkg4")'>pkg4</a>:<br>
+-file8.go<br>
+-file9.go<br>
+
+</div>
+
+<script src="js/d3.v3.min.js"></script>
+<script>
+
+var color = d3.scale.category20();
+
+var width = 960,
+    height = 500;
+
+var legend_x = width-150;
+    legend_y = height-50;
+
+// init nodesmap[pkg] and linksmap[pkg] in template
+
+function load_graph(pkg) {
+// get nodes and links from nodesmap[pkg], linksmap[pkg]
+console.log(pkg)
+var links = [
+  {source: "Microsoft", target: "Amazon", filename: "licensing"},
+  {source: "Microsoft", target: "HTC", filename: "licensing"},
+  {source: "Samsung", target: "Apple", filename: "suit"},
+  {source: "Motorola", target: "Apple", filename: "suit"},
+  {source: "Nokia", target: "Apple", filename: "resolved"},
+  {source: "HTC", target: "Apple", filename: "suit"},
+  {source: "Kodak", target: "Apple", filename: "suit"},
+  {source: "Microsoft", target: "Barnes & Noble", filename: "suit"},
+  {source: "Microsoft", target: "Foxconn", filename: "suit"},
+  {source: "Oracle", target: "Google", filename: "suit"},
+  {source: "Apple", target: "HTC", filename: "suit"},
+  {source: "Microsoft", target: "Inventec", filename: "suit"},
+  {source: "Samsung", target: "Kodak", filename: "resolved"},
+  {source: "LG", target: "Kodak", filename: "resolved"},
+  {source: "RIM", target: "Kodak", filename: "suit"},
+  {source: "Sony", target: "LG", filename: "suit"},
+  {source: "Kodak", target: "LG", filename: "resolved"},
+  {source: "Apple", target: "Nokia", filename: "resolved"},
+  {source: "Qualcomm", target: "Nokia", filename: "resolved"},
+  {source: "Apple", target: "Motorola", filename: "suit"},
+  {source: "Microsoft", target: "Motorola", filename: "suit"},
+  {source: "Motorola", target: "Microsoft", filename: "suit"},
+  {source: "Huawei", target: "ZTE", filename: "suit"},
+  {source: "Ericsson", target: "ZTE", filename: "suit"},
+  {source: "Kodak", target: "Samsung", filename: "resolved"},
+  {source: "Apple", target: "Samsung", filename: "suit"},
+  {source: "Kodak", target: "RIM", filename: "suit"},
+  {source: "Nokia", target: "Qualcomm", filename: "suit"}
+];
+
+var nodes = {};
+
+// Compute the distinct nodes from the links.
+links.forEach(function(link) {
+  link.source = nodes[link.source] || (nodes[link.source] = {name: link.source, filename: link.filename});
+  link.target = nodes[link.target] || (nodes[link.target] = {name: link.target, filename: link.filename});
+});
+
+var legend = {};
+for (var key in nodes) {
+  var node = nodes[key]
+  if (!legend.hasOwnProperty(node.filename)) {
+    legend[node.filename] = {filename: node.filename, i: Object.keys(legend).length};
+  }
+}
+
+
+var force = d3.layout.force()
+    .nodes(d3.values(nodes))
+    .links(links)
+    .size([width, height])
+    .linkDistance(60)
+    .charge(-300)
+    .on("tick", tick)
+    .start();
+
+var svg = d3.select("body")
+    .append("center")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+// Per-filename markers, as they don't inherit styles.
+svg.append("defs").selectAll("marker")
+    .data(["suit", "licensing", "resolved"])
+  .enter().append("marker")
+    .attr("id", function(d) { return d; })
+    .attr("viewBox", "0 -5 10 10")
+    .attr("refX", 15)
+    .attr("refY", -1.5)
+    .attr("markerWidth", 6)
+    .attr("markerHeight", 6)
+    .attr("orient", "auto")
+  .append("path")
+    .attr("d", "M0,-5L10,0L0,5");
+
+var path = svg.append("g").selectAll("path")
+    .data(force.links())
+  .enter().append("path")
+    .attr("class", function(d) { return "link " + d.filename; })
+    .attr("marker-end", function(d) { return "url(#" + d.filename + ")"; });
+
+var circle = svg.append("g").selectAll("circle")
+    .data(force.nodes())
+  .enter().append("circle")
+    .attr("fill", function (d) { return color(d.name); })
+    .attr("r", 6)
+    .call(force.drag);
+
+
+svg.append("g").selectAll("circle")
+  .data(Object.keys(legend))
+  .enter().append("circle")
+  .attr("fill", function (k) {return color(legend[k].filename); })
+  .attr("r", 6)
+  .attr("cx", legend_x)
+  .attr("cy", function (k) { return legend[k].i * 20  + legend_y; });
+
+svg.append("g").selectAll("text")
+  .data(Object.keys(legend))
+  .enter().append("text")
+  .attr("x", legend_x + 10)
+  .attr("y", function (k) { return legend[k].i * 20  + legend_y + 5; })
+  .text(function (k) { return legend[k].filename; });
+
+
+var text = svg.append("g").selectAll("text")
+    .data(force.nodes())
+  .enter().append("text")
+    .attr("x", 8)
+    .attr("y", ".31em")
+    .text(function(d) { return d.name; });
+
+
+
+  // Use elliptical arc path segments to doubly-encode directionality.
+function tick() {
+  path.attr("d", linkArc);
+  circle.attr("transform", transform);
+  text.attr("transform", transform);
+}
+
+function linkArc(d) {
+  var dx = d.target.x - d.source.x,
+      dy = d.target.y - d.source.y,
+      dr = Math.sqrt(dx * dx + dy * dy);
+  return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+}
+
+function transform(d) {
+  return "translate(" + d.x + "," + d.y + ")";
+}
+}
+
+
+load_graph("pkg")
+
+
+
+</script>
+</body>
