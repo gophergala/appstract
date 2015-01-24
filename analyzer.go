@@ -1,36 +1,37 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"strings"
+	"sync"
 )
 
-func main() {
-	a := NewAnalysis("corgi", "man")
-	// add async
-	a.AddFile("file.go", src)
-	a.AddFile("file2.go", src2)
+// func main() {
+// 	a := NewAnalysis("corgi", "man")
+// 	// add async
+// 	a.AddFile("file.go", src)
+// 	a.AddFile("file2.go", src2)
 
-	// after ALL files are added
-	a.ConstructGraph()
+// 	// after ALL files are added
+// 	a.ConstructGraph()
 
-	bts, err := json.MarshalIndent(&a.Repo, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(bts))
+// 	bts, err := json.MarshalIndent(&a.Repo, "", "  ")
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	fmt.Println(string(bts))
 
-	fmt.Println(a.TypesMap)
-	fmt.Println(a.FilesMap)
-}
+// 	fmt.Println(a.TypesMap)
+// 	fmt.Println(a.FilesMap)
+// }
 
 // Parse file and get types
 
 type Analysis struct {
+	mu       *sync.Mutex
 	Files    map[string]*ast.File
 	TypesMap map[string]string
 	FilesMap map[string]string
@@ -49,9 +50,11 @@ type Package struct {
 }
 
 type Link struct {
-	Source, Target       string
-	SFileName, TFileName string
-	External             bool
+	Source    string `json:"s"`
+	Target    string `json:"t"`
+	SFileName string `json:"sf"`
+	TFileName string `json:"tf"`
+	External  bool   `json:"ex"`
 }
 
 // type Function struct { // Will be the nodes
@@ -60,31 +63,32 @@ type Link struct {
 // }
 
 func NewAnalysis(user, repo string) Analysis {
-	return Analysis{
-		make(map[string]*ast.File),
-		make(map[string]string),
-		make(map[string]string),
-		Repository{
-			User: user,
-			Name: repo,
-			Pkgs: make(map[string]Package),
-		},
-	}
+	a := Analysis{}
+	a.mu = &sync.Mutex{}
+	a.Files = make(map[string]*ast.File)
+	a.TypesMap = make(map[string]string)
+	a.FilesMap = make(map[string]string)
+	a.Repo = Repository{user, repo, make(map[string]Package)}
+	return a
 }
 
 func (a Analysis) AddFile(filename, src string) {
 	f := ParseFile(filename, src)
+	if f == nil || f.Name == nil {
+		return
+	}
+	a.mu.Lock()
 	a.Files[filename] = f
-
 	pkgname := f.Name.Name
 	for _, decl := range f.Decls {
 		// functions
 		if fun, ok := decl.(*ast.FuncDecl); ok {
 			id, typ := GetDeclInfo(fun, pkgname)
 			a.TypesMap[pkgname+"."+id] = typ
-			a.FilesMap[id] = filename
+			a.FilesMap[pkgname+"."+id] = filename
 		}
 	}
+	a.mu.Unlock()
 }
 
 func (a Analysis) ConstructGraph() {
@@ -156,7 +160,7 @@ func (a Analysis) AddToGraph(callerfilename string, f *ast.File) {
 						typ = GetType(sel.X)
 						fname = callerfilename
 					}
-					if fn, ok := a.FilesMap[typ+"."+sel.Sel.Name]; ok {
+					if fn, ok := a.FilesMap[pkg+"."+typ+"."+sel.Sel.Name]; ok {
 						fname = fn
 					} else {
 						fname = callerfilename
@@ -196,7 +200,12 @@ func ParseFile(file, src string) *ast.File {
 func GetDeclInfo(fun *ast.FuncDecl, pkg string) (id, typ string) {
 	rec := ""
 	if fun.Recv != nil {
-		rec = fun.Recv.List[0].Type.(*ast.Ident).Name
+		if star, ok := fun.Recv.List[0].Type.(*ast.StarExpr); ok {
+			rec = star.X.(*ast.Ident).Name
+		}
+		if ident, ok := fun.Recv.List[0].Type.(*ast.Ident); ok {
+			rec = ident.Name
+		}
 	}
 
 	// id = pkg + "."
@@ -207,7 +216,9 @@ func GetDeclInfo(fun *ast.FuncDecl, pkg string) (id, typ string) {
 
 	typ = ""
 	if fun.Type.Results != nil {
-		typ = fun.Type.Results.List[0].Type.(*ast.Ident).Name
+		if ident, ok := fun.Type.Results.List[0].Type.(*ast.Ident); ok {
+			typ = ident.Name
+		}
 	}
 
 	return id, typ

@@ -16,19 +16,20 @@
   fill: none;
   stroke: #666;
   stroke-width: 1.5px;
-  opacity: 0.5;
+  opacity: 0.8;
 }
 
-#licensing {
+/*#false {
   fill: green;
 }
 
-.link.licensing {
+.link.false {
   stroke: green;
 }
-
-.link.resolved {
+*/
+.link.true {
   stroke-dasharray: 0,2 1;
+  opacity: 0.5;
 }
 
 circle {
@@ -84,42 +85,30 @@ var svg = d3.select("body")
 
 // HTML TEMPLATE
 var links = [
-  {source: "Microsoft", target: "Amazon", filename: "licensing"},
-  {source: "Microsoft", target: "HTC", filename: "licensing"},
-  {source: "Samsung", target: "Apple", filename: "suit"},
-  {source: "Motorola", target: "Apple", filename: "suit"},
-  {source: "Nokia", target: "Apple", filename: "resolved"},
-  {source: "HTC", target: "Apple", filename: "suit"},
-  {source: "Kodak", target: "Apple", filename: "suit"},
-  {source: "Microsoft", target: "Barnes & Noble", filename: "suit"},
-  {source: "Microsoft", target: "Foxconn", filename: "suit"},
-  {source: "Oracle", target: "Google", filename: "suit"},
-  {source: "Apple", target: "HTC", filename: "suit"},
-  {source: "Microsoft", target: "Inventec", filename: "suit"},
-  {source: "Samsung", target: "Kodak", filename: "resolved"},
-  {source: "LG", target: "Kodak", filename: "resolved"},
-  {source: "RIM", target: "Kodak", filename: "suit"},
-  {source: "Sony", target: "LG", filename: "suit"},
-  {source: "Kodak", target: "LG", filename: "resolved"},
-  {source: "Apple", target: "Nokia", filename: "resolved"},
-  {source: "Qualcomm", target: "Nokia", filename: "resolved"},
-  {source: "Apple", target: "Motorola", filename: "suit"},
-  {source: "Microsoft", target: "Motorola", filename: "suit"},
-  {source: "Motorola", target: "Microsoft", filename: "suit"},
-  {source: "Huawei", target: "ZTE", filename: "suit"},
-  {source: "Ericsson", target: "ZTE", filename: "suit"},
-  {source: "Kodak", target: "Samsung", filename: "resolved"},
-  {source: "Apple", target: "Samsung", filename: "suit"},
-  {source: "Kodak", target: "RIM", filename: "suit"},
-  {source: "Nokia", target: "Qualcomm", filename: "suit"}
-];
+{"s":"LengthSqr","t":"DistSqr","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"Length","t":"Dist","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"Normalize","t":"Length","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"Clamp","t":"Dot","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"Clamp","t":"Mult","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"Clamp","t":"Normalize","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"FromAngle","t":"Float","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"FromAngle","t":"math.Cos","sf":"vect.go","tf":"math","ex":true},
+{"s":"FromAngle","t":"float64","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"FromAngle","t":"Float","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"FromAngle","t":"math.Sin","sf":"vect.go","tf":"math","ex":true},
+{"s":"FromAngle","t":"float64","sf":"vect.go","tf":"vect.go","ex":false},
+{"s":"Vect.MarshalJSON","t":"json.Marshal","sf":"json.go","tf":"json","ex":true}
+].map(function (d) { return {source: d["s"], target:d["t"], sourcefile:d["sf"], targetfile:d["tf"], external:d["ex"]} ;})
+
+console.log(links)
+
+var links
 
 var nodes = {};
-
 // Compute the distinct nodes from the links.
 links.forEach(function(link) {
-  link.source = nodes[link.source] || (nodes[link.source] = {name: link.source, filename: link.filename});
-  link.target = nodes[link.target] || (nodes[link.target] = {name: link.target, filename: link.filename});
+  link.source = nodes[link.source] || (nodes[link.source] = {name: link.source, filename: link.sourcefile});
+  link.target = nodes[link.target] || (nodes[link.target] = {name: link.target, filename: link.targetfile});
 });
 
 var legend = {};
@@ -144,7 +133,7 @@ var force = d3.layout.force()
 
 // Per-filename markers, as they don't inherit styles.
 svg.append("defs").selectAll("marker")
-    .data(["suit", "licensing", "resolved"])
+    .data([true, false])
   .enter().append("marker")
     .attr("id", function(d) { return d; })
     .attr("viewBox", "0 -5 10 10")
@@ -159,13 +148,13 @@ svg.append("defs").selectAll("marker")
 var path = svg.append("g").selectAll("path")
     .data(force.links())
   .enter().append("path")
-    .attr("class", function(d) { return "link " + d.filename; })
-    .attr("marker-end", function(d) { return "url(#" + d.filename + ")"; });
+    .attr("class", function(d) { return "link " + d.external; })
+    .attr("marker-end", function(d) { return "url(#" + d.external + ")"; });
 
 var circle = svg.append("g").selectAll("circle")
     .data(force.nodes())
   .enter().append("circle")
-    .attr("fill", function (d) { return color(d.name); })
+    .attr("fill", function (d) { return color(d.filename); })
     .attr("r", 6)
     .call(force.drag);
 
