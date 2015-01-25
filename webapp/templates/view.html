@@ -115,19 +115,6 @@ var svg = d3.select("body")
 
 // HTML TEMPLATE
 var links = {{.Package.Links}}.map(function (d) { return {source: d["s"], target:d["t"], sourcefile:d["sf"], targetfile:d["tf"], external:d["ex"]} ;})
-// {"s":"LengthSqr","t":"DistSqr","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"Length","t":"Dist","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"Normalize","t":"Length","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"Clamp","t":"Dot","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"Clamp","t":"Mult","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"Clamp","t":"Normalize","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"FromAngle","t":"Float","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"FromAngle","t":"math.Cos","sf":"vect.go","tf":"math","ex":true},
-// {"s":"FromAngle","t":"float64","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"FromAngle","t":"Float","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"FromAngle","t":"math.Sin","sf":"vect.go","tf":"math","ex":true},
-// {"s":"FromAngle","t":"float64","sf":"vect.go","tf":"vect.go","ex":false},
-// {"s":"Vect.MarshalJSON","t":"json.Marshal","sf":"json.go","tf":"json","ex":true}
 
 var links
 

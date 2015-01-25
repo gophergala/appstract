@@ -13,22 +13,17 @@ import (
 type Crawler struct {
 	user_repo string
 	mu        *sync.Mutex
-	// Files     *[]string
-	// Srcs      *[]string
-	Analysis Analysis
+	Analysis  Analysis
 }
 
 func NewCrawler(user, repo string) Crawler {
 	c := Crawler{user_repo: "/" + user + "/" + repo}
 	c.mu = &sync.Mutex{}
-	// c.Files = &[]string{}
-	// c.Srcs = &[]string{}
 	c.Analysis = NewAnalysis(user, repo)
 	return c
 }
 
 func (c Crawler) Crawl(context appengine.Context) {
-	// c.Infof("HOSAJFIOJSAOIFJIOSA\n")
 	c.ParseDir(c.user_repo, "", context)
 }
 
@@ -36,8 +31,6 @@ var mu = &sync.Mutex{}
 
 func (c Crawler) ParseDir(user_repo, path string, context appengine.Context) {
 	dirs, files := GetDirInfo(user_repo, path, context)
-
-	// context.Infof("%v\n%v\n", path, dirs)
 	wg := sync.WaitGroup{}
 	for _, dir := range dirs {
 		wg.Add(1)
@@ -56,12 +49,9 @@ func (c Crawler) ParseDir(user_repo, path string, context appengine.Context) {
 		}(file_path)
 	}
 	wg.Wait()
-	// context.Infof("close %v\n", path)
 }
 
 func (c Crawler) ParseFile(user_repo, file_path string, context appengine.Context) {
-
-	// context.Infof("  %v\n", file_path)
 	t := &urlfetch.Transport{Context: context, Deadline: time.Second * 5, AllowInvalidServerCertificate: true}
 	client := &http.Client{Transport: t}
 	resp, err := client.Get("https://raw.githubusercontent.com/" + user_repo + "/master" + file_path)
@@ -73,16 +63,8 @@ func (c Crawler) ParseFile(user_repo, file_path string, context appengine.Contex
 		return
 	}
 	resp.Body.Close()
-	// split := strings.Split(file_path, "/")
-	// filename := split[len(split)-1]
 	src := string(body)
 	c.Analysis.AddFile(file_path, src)
-
-	// context.Infof("  close %v\n", file_path)
-	// c.mu.Lock()
-	// *c.Files = append(*c.Files, filename)
-	// *c.Srcs = append(*c.Srcs, src)
-	// c.mu.Unlock()
 }
 
 func GetDirInfo(user_repo, path string, c appengine.Context) (dirs, files []string) {
@@ -112,9 +94,3 @@ func GetDirInfo(user_repo, path string, c appengine.Context) (dirs, files []stri
 
 	return dirs, files
 }
-
-// func logerr(err error) {
-// 	if err != nil {
-// 		log.Println(err)
-// 	}
-// }
