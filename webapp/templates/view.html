@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <style>
-
-
-
 #packages {
     /*float:left;*/ /* add this */
     border: 1px solid black;
@@ -56,6 +53,8 @@ text {
 }
 
 </style>
+
+<title>AppStract</title>
 <body>
 
 
@@ -92,7 +91,7 @@ var color = d3.scale.category20();
 var width = screen.width *0.9,
     height = screen.height * 0.75;
 
-var legend_x = 20;
+var legend_x = width - 200;
     legend_y = height-20;
 
 var svg = d3.select("body")

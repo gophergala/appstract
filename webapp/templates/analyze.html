@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+
+<title>AppStract</title>
+<body>
+
+
+<!-- AppStract -->
+<center><h1>Analyzing ...</h1><h2>this might take a minute</h2></center>
+
+<div style="position:absolute; left:4%; top:2%;">
+<a href="/"><img src="/static/gropher.png" style="padding-left:15px" width="150"></a>
+<h1 style="position:relative; top:-20px; left:15px">Appstract</h1>
+
+<!-- long polling redirect -->
+<script type="text/javascript">
+    var url = document.URL;
+    // alert(url);
+    // alert(url.substring(0, url.indexOf("analyze")));
+    // alert(url.substring(url.indexOf("analyze")+8));
+
+    window.location.href = url.substring(0, url.indexOf("analyze")) + "waiting/" + url.substring(url.indexOf("analyze")+8)
+</script>
+</div>
+</body>
+

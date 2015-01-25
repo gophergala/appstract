@@ -1,17 +1,13 @@
 package appstract
 
 import (
-	// "encoding/json"
-	// "fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"regexp"
-	// "strings"
-	"sync"
-	// "time"
 	"appengine"
 	"appengine/urlfetch"
+	"io/ioutil"
+	"net/http"
+	"regexp"
+	"sync"
+	"time"
 )
 
 type Crawler struct {
@@ -31,72 +27,80 @@ func NewCrawler(user, repo string) Crawler {
 	return c
 }
 
-func (c Crawler) Crawl(r *http.Request) {
-	c.ParseDir(c.user_repo, "", r)
+func (c Crawler) Crawl(context appengine.Context) {
+	// c.Infof("HOSAJFIOJSAOIFJIOSA\n")
+	c.ParseDir(c.user_repo, "", context)
 }
 
 var mu = &sync.Mutex{}
 
-func (c Crawler) ParseDir(user_repo, path string, r *http.Request) {
-	context := appengine.NewContext(r)
-	context.Infof("%v\n", path)
-	dirs, files := GetDirInfo(user_repo, path, r)
+func (c Crawler) ParseDir(user_repo, path string, context appengine.Context) {
+	if len(path) >= len("/test") && path[:len("/test")] == "/test" {
+		return
+	}
+	dirs, files := GetDirInfo(user_repo, path, context)
+
+	// context.Infof("%v\n%v\n", path, dirs)
 	wg := sync.WaitGroup{}
 	for _, dir := range dirs {
 		wg.Add(1)
 		go func(dir string) {
-			c.ParseDir(user_repo, dir, r)
+			c.ParseDir(user_repo, dir, context)
 			wg.Done()
 		}(dir)
 	}
+
 	for _, file_path := range files {
 		wg.Add(1)
 
 		go func(file_path string) {
-			c.ParseFile(user_repo, file_path, r)
+			c.ParseFile(user_repo, file_path, context)
 			wg.Done()
 		}(file_path)
 	}
 	wg.Wait()
-	context.Infof("close %v\n", path)
-
+	// context.Infof("close %v\n", path)
 }
 
-func (c Crawler) ParseFile(user_repo, file_path string, r *http.Request) {
-	// reset timer (lock mu)
-	//fmt.Println(file_path)
+func (c Crawler) ParseFile(user_repo, file_path string, context appengine.Context) {
 
-	context := appengine.NewContext(r)
-	context.Infof("  %v\n", file_path)
-	client := urlfetch.Client(context)
+	// context.Infof("  %v\n", file_path)
+	t := &urlfetch.Transport{Context: context, Deadline: time.Second * 5, AllowInvalidServerCertificate: true}
+	client := &http.Client{Transport: t}
 	resp, err := client.Get("https://raw.githubusercontent.com/" + user_repo + "/master" + file_path)
-	logerr(err)
+	if err != nil || resp == nil {
+		return
+	}
 	body, err := ioutil.ReadAll(resp.Body)
-	logerr(err)
+	if err != nil {
+		return
+	}
 	resp.Body.Close()
 	// split := strings.Split(file_path, "/")
 	// filename := split[len(split)-1]
 	src := string(body)
 	c.Analysis.AddFile(file_path, src)
 
-	context.Infof("  close %v\n", file_path)
+	// context.Infof("  close %v\n", file_path)
 	// c.mu.Lock()
 	// *c.Files = append(*c.Files, filename)
 	// *c.Srcs = append(*c.Srcs, src)
 	// c.mu.Unlock()
 }
 
-func GetDirInfo(user_repo, path string, r *http.Request) (dirs, files []string) {
-	c := appengine.NewContext(r)
-	client := urlfetch.Client(c)
+func GetDirInfo(user_repo, path string, c appengine.Context) (dirs, files []string) {
+	// c := appengine.NewContext(r)
+	// client := urlfetch.Client(c)
+	t := &urlfetch.Transport{Context: c, Deadline: time.Second * 5, AllowInvalidServerCertificate: true}
+	client := &http.Client{Transport: t}
 	resp, err := client.Get("https://github.com" + user_repo + "/tree/master" + path)
-	// resp, err := http.Get("https://github.com" + user_repo + "/tree/master" + path)
-	logerr(err)
-	if resp == nil {
+	if err != nil || resp == nil {
 		return nil, nil
 	}
 	body, err := ioutil.ReadAll(resp.Body)
-	logerr(err)
+	if err != nil {
+		return nil, nil
+	}
 	html := string(body)
 	resp.Body.Close()
 
@@ -112,8 +116,8 @@ func GetDirInfo(user_repo, path string, r *http.Request) (dirs, files []string) 
 	return dirs, files
 }
 
-func logerr(err error) {
-	if err != nil {
-		log.Println(err)
-	}
-}
+// func logerr(err error) {
+// 	if err != nil {
+// 		log.Println(err)
+// 	}
+// }

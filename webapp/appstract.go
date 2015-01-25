@@ -29,38 +29,36 @@ type DBPackage struct {
 	Links                  []Link
 }
 
-func extract(user, repo string, r *http.Request) error {
-	c := appengine.NewContext(r)
+func extract(user, repo string, c appengine.Context) {
+	c.Infof("%s---%s---HOSAJFIOJSAOIFJIOSA\n", user, repo)
 	cr := NewCrawler(user, repo)
+	c.Infof("%s---%s---HOSAJFIOJSAOIFJIOSA\n", user, repo)
+	cr.Crawl(c)
 
-	cr.Crawl(r)
-
-	// time.Sleep(time.Second * 180)
+	// time.Sleep(time.Second * 20)
 
 	cr.Analysis.ConstructGraph()
+
 	for _, pkg := range cr.Analysis.Repo.Pkgs {
 		if len(*pkg.Links) == 0 {
 			continue
 		}
 		p := DBPackage{pkg.User, pkg.Repo, pkg.Path, pkg.Name, *pkg.Links}
 		key := datastore.NewKey(c, "package", p.User+"/"+p.Repo+"/"+p.Path+p.Name, 0, nil)
-		_, err := datastore.Put(c, key, &p)
-		if err != nil {
-			return err
-		}
+		_, _ = datastore.Put(c, key, &p)
+
 	}
-	return nil
+
 	// bts, err := json.Marshal(c.Analysis.Repo)
 	// logerr(err)
 	// fmt.Println(string(bts))
 }
 
 func root(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+	// c := appengine.NewContext(r)
 	if err := rootTemplate.Execute(w, struct{}{}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	c.Infof("root*** Requested URL: %v", r.URL)
 }
 
 func view(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +80,7 @@ func view(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := appengine.NewContext(r)
-	c.Infof("\n\n\n%s\n\n\n\n", s)
+	// c.Infof("\n\n\n%s\n\n\n\n", s)
 	p := DBPackage{}
 	if len(split) > 2 {
 		key := datastore.NewKey(c, "package", s, 0, nil)
@@ -101,7 +99,10 @@ func view(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if len(ps) == 0 {
-			serve404(w)
+			// serve404(w)
+			user_repo := split[0] + "/" + split[1]
+			extract(split[0], split[1], c)
+			http.Redirect(w, r, "/view/"+user_repo, http.StatusFound)
 			return
 		}
 		p = ps[0]
@@ -127,23 +128,49 @@ func view(w http.ResponseWriter, r *http.Request) {
 
 }
 
+var processing map[string]bool
+
 func analyze(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	s := r.FormValue("q")
-	if i := strings.Index(s, "github.com/"); i != -1 {
-		s = s[i+len("github.com/"):]
+	// c := appengine.NewContext(r)
+
+	s := r.URL.Path[len("/analyze/"):]
+	if s != "" && s[len(s)-1] == '/' {
+		s = s[:len(s)-1]
 	}
+
 	split := strings.Split(s, "/")
-
-	if err := extract(split[0], split[1], r); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if len(split) < 2 {
+		http.Redirect(w, r, "/", http.StatusOK)
 	}
 
-	c.Infof("")
-	if err := viewTemplate.Execute(w, struct{}{}); err != nil {
+	if err := analyzeTemplate.Execute(w, nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	// http.Redirect(w, r, "/", http.StatusFound)
+}
+
+func waiting(w http.ResponseWriter, r *http.Request) {
+	s := r.URL.Path[len("/waiting/"):]
+	if s != "" && s[len(s)-1] == '/' {
+		s = s[:len(s)-1]
+	}
+
+	split := strings.Split(s, "/")
+	if len(split) < 2 {
+		http.Redirect(w, r, "/", http.StatusOK)
+	}
+	// user_repo := split[0] + "/" + split[1]
+	// for i := 0; i < 300; i++ {
+	// 	if !processing[user_repo] {
+	// 		http.Redirect(w, r, "/view/"+user_repo, http.StatusFound)
+	// 		break
+	// 	}
+	// 	time.Sleep(time.Second)
+	// }
+
+	// if err := viewTemplate.Execute(w, struct{}{}); err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// }
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 var rootTemplate *template.Template
@@ -151,10 +178,14 @@ var viewTemplate *template.Template
 var analyzeTemplate *template.Template
 
 func init() {
+	if processing == nil {
+		processing = make(map[string]bool)
+	}
+
 	var f *os.File
 	var s []byte
 	var err error
-	if f, err = os.Open("static/root.html"); err != nil {
+	if f, err = os.Open("templates/root.html"); err != nil {
 		panic(err)
 	}
 	if s, err = ioutil.ReadAll(f); err != nil {
@@ -162,7 +193,7 @@ func init() {
 	}
 	rootTemplate = template.Must(template.New("root").Parse(string(s)))
 
-	if f, err = os.Open("static/view.html"); err != nil {
+	if f, err = os.Open("templates/view.html"); err != nil {
 		panic(err)
 	}
 	if s, err = ioutil.ReadAll(f); err != nil {
@@ -170,7 +201,7 @@ func init() {
 	}
 	viewTemplate = template.Must(template.New("view").Parse(string(s)))
 
-	if f, err = os.Open("static/analyze.html"); err != nil {
+	if f, err = os.Open("templates/analyze.html"); err != nil {
 		panic(err)
 	}
 	if s, err = ioutil.ReadAll(f); err != nil {
@@ -181,6 +212,7 @@ func init() {
 	http.HandleFunc("/", root)
 	http.HandleFunc("/view/", view)
 	http.HandleFunc("/analyze/", analyze)
+	http.HandleFunc("/waiting/", waiting)
 }
 
 func GetPackages(s string, r *http.Request) ([]string, error) {
@@ -199,8 +231,8 @@ func GetPackages(s string, r *http.Request) ([]string, error) {
 		strs = append(strs, s)
 	}
 
-	c.Infof("\n\n\n%v\n\n\n", s)
-	c.Infof("\n\n\n%v\n\n\n", strs)
+	// c.Infof("\n\n\n%v\n\n\n", s)
+	// c.Infof("\n\n\n%v\n\n\n", strs)
 	return strs, nil
 }
 
