@@ -29,10 +29,10 @@ type DBPackage struct {
 	Links                  []Link
 }
 
-func extract(user, repo string, c appengine.Context) {
-	c.Infof("%s---%s---HOSAJFIOJSAOIFJIOSA\n", user, repo)
+func extract(user, repo string, c appengine.Context) bool {
+	// c.Infof("%s---%s---HOSAJFIOJSAOIFJIOSA\n", user, repo)
 	cr := NewCrawler(user, repo)
-	c.Infof("%s---%s---HOSAJFIOJSAOIFJIOSA\n", user, repo)
+	// c.Infof("%s---%s---HOSAJFIOJSAOIFJIOSA\n", user, repo)
 	cr.Crawl(c)
 
 	// time.Sleep(time.Second * 20)
@@ -48,7 +48,10 @@ func extract(user, repo string, c appengine.Context) {
 		_, _ = datastore.Put(c, key, &p)
 
 	}
-
+	if len(cr.Analysis.Repo.Pkgs) == 0 {
+		return false
+	}
+	return true
 	// bts, err := json.Marshal(c.Analysis.Repo)
 	// logerr(err)
 	// fmt.Println(string(bts))
@@ -101,7 +104,10 @@ func view(w http.ResponseWriter, r *http.Request) {
 		if len(ps) == 0 {
 			// serve404(w)
 			user_repo := split[0] + "/" + split[1]
-			extract(split[0], split[1], c)
+			if ok := extract(split[0], split[1], c); !ok {
+				serve404(w, user_repo)
+				return
+			}
 			http.Redirect(w, r, "/view/"+user_repo, http.StatusFound)
 			return
 		}
@@ -127,8 +133,6 @@ func view(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
-
-var processing map[string]bool
 
 func analyze(w http.ResponseWriter, r *http.Request) {
 	// c := appengine.NewContext(r)
@@ -178,9 +182,6 @@ var viewTemplate *template.Template
 var analyzeTemplate *template.Template
 
 func init() {
-	if processing == nil {
-		processing = make(map[string]bool)
-	}
 
 	var f *os.File
 	var s []byte
@@ -236,8 +237,8 @@ func GetPackages(s string, r *http.Request) ([]string, error) {
 	return strs, nil
 }
 
-func serve404(w http.ResponseWriter) {
+func serve404(w http.ResponseWriter, s string) {
 	w.WriteHeader(http.StatusNotFound)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(w, "Not Found")
+	io.WriteString(w, "Invalid GitHub repository: https://github.com/"+s+". Make sure the repository contains go files")
 }
