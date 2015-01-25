@@ -6,9 +6,14 @@
 
 #packages {
     /*float:left;*/ /* add this */
-    /*border: 1px solid red;*/
-    position: absolute;
-    left: 7%;
+    border: 1px solid black;
+    /*width: 150px;*/
+    padding-left: 30px;
+    padding-right: 30px;
+    /*position: absolute;*/
+    /*left: 6%;*/
+    /*top: 20%;*/
+    fill: white;
 }
 
 #externalbox {
@@ -52,18 +57,30 @@ text {
 
 </style>
 <body>
-<center><h1>AppStract</h1></center>
+
+
+<!-- AppStract -->
+<center><h1>{{.Package.User}}/{{.Package.Repo}}/{{.Package.Path}}{{.Package.Name}}</h1></center>
+
+<div style="position:absolute; left:4%; top:2%;">
+<a href="/"><img src="/static/gropher.png" style="padding-left:15px" width="150"></a>
+<h1 style="position:relative; top:-20px; left:15px">Appstract</h1>
+
+
 
 <div id="packages">
 <!-- HTML TEMPLATE -->
+  <h2 >Packages</h2>
 {{range .Packages}}
-<a href='/view/{{.Path}}'>{{.Name}}</a><br>
+    <a href='/view/{{.Path}}'>{{.Name}}</a><br>
 {{end}}
-<br>
-<br>
+<br><br>
 <div id="externalbox">
-<input type="checkbox" checked style="position: relative; top: 2px;" onclick='toggleExternal(this);'>external nodes</input>
+<input type="checkbox" checked onclick='toggleExternal(this);'>show externals</input>
+<br><br>
 </div>
+</div>
+
 </div>
 
 
