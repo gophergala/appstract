@@ -8,7 +8,12 @@
     /*float:left;*/ /* add this */
     /*border: 1px solid red;*/
     position: absolute;
-    left: 100px;
+    left: 7%;
+}
+
+#externalbox {
+  position: relative;
+  left: -20px;
 }
 
 
@@ -54,8 +59,13 @@ text {
 {{range .Packages}}
 <a href='/view/{{.Path}}'>{{.Name}}</a><br>
 {{end}}
-
+<br>
+<br>
+<div id="externalbox">
+<input type="checkbox" checked style="position: relative; top: 2px;" onclick='toggleExternal(this);'>external nodes</input>
 </div>
+</div>
+
 
 <script src="/static/js/d3.v3.min.js"></script>
 <script>
@@ -90,15 +100,20 @@ var links = {{.Package.Links}}.map(function (d) { return {source: d["s"], target
 // {"s":"FromAngle","t":"float64","sf":"vect.go","tf":"vect.go","ex":false},
 // {"s":"Vect.MarshalJSON","t":"json.Marshal","sf":"json.go","tf":"json","ex":true}
 
-console.log(links)
-
 var links
 
 var nodes = {};
 // Compute the distinct nodes from the links.
 links.forEach(function(link) {
-  link.source = nodes[link.source] || (nodes[link.source] = {name: link.source, filename: link.sourcefile});
-  link.target = nodes[link.target] || (nodes[link.target] = {name: link.target, filename: link.targetfile});
+  link.source = nodes[link.source] || (nodes[link.source] = {name: link.source, filename: link.sourcefile, external: false});
+  link.target = nodes[link.target] || (nodes[link.target] = {name: link.target, filename: link.targetfile, external: false});
+});
+
+
+links.forEach(function(link) {
+  if (link.external==true) {
+    link.target.external = true
+  };
 });
 
 var legend = {};
@@ -146,6 +161,7 @@ var circle = svg.append("g").selectAll("circle")
   .enter().append("circle")
     .attr("fill", function (d) { return color(d.filename); })
     .attr("r", 6)
+    // .attr("class", function (d) { if(d.external) { return "external"; } else { return "local"; } })
     .call(force.drag);
 
 
@@ -190,6 +206,18 @@ function linkArc(d) {
 
 function transform(d) {
   return "translate(" + d.x + "," + d.y + ")";
+}
+
+function toggleExternal(cb) {
+  if (cb.checked) {
+    path.attr("visibility", "visible")
+    circle.attr("visibility", "visible")
+    text.attr("visibility", "visible")
+  } else {
+    path.attr("visibility", function (d) { if (d.external) { return "hidden"; } else { return "visible"; } })
+    circle.attr("visibility", function (d) { if (d.external) { return "hidden"; } else { return "visible"; } })
+    text.attr("visibility", function (d) { if (d.external) { return "hidden"; } else { return "visible"; } })
+  }
 }
 
 </script>
