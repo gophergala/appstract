@@ -39,9 +39,10 @@ circle {
 }
 
 text {
-  font: 12px sans-serif;
+  font: 10px sans-serif;
   pointer-events: none;
-  text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, 0 -2px 0 #fff, -2px 0 0 #fff, 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+  /*text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, 0 -2px 0 #fff, -2px 0 0 #fff, 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;*/
 }
 
 </style>
@@ -66,16 +67,16 @@ text {
 
 </div>
 
-<script src="js/d3.v3.min.js"></script>
+<script src="static/js/d3.v3.min.js"></script>
 <script>
 
 var color = d3.scale.category20();
 
-var width = 960,
-    height = 500;
+var width = 1024,
+    height = 800;
 
-var legend_x = width-150;
-    legend_y = height-50;
+var legend_x = 20;
+    legend_y = height-20;
 
 var svg = d3.select("body")
     .append("center")
@@ -84,21 +85,20 @@ var svg = d3.select("body")
     .attr("height", height);
 
 // HTML TEMPLATE
-var links = [
-{"s":"LengthSqr","t":"DistSqr","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"Length","t":"Dist","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"Normalize","t":"Length","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"Clamp","t":"Dot","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"Clamp","t":"Mult","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"Clamp","t":"Normalize","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"FromAngle","t":"Float","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"FromAngle","t":"math.Cos","sf":"vect.go","tf":"math","ex":true},
-{"s":"FromAngle","t":"float64","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"FromAngle","t":"Float","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"FromAngle","t":"math.Sin","sf":"vect.go","tf":"math","ex":true},
-{"s":"FromAngle","t":"float64","sf":"vect.go","tf":"vect.go","ex":false},
-{"s":"Vect.MarshalJSON","t":"json.Marshal","sf":"json.go","tf":"json","ex":true}
-].map(function (d) { return {source: d["s"], target:d["t"], sourcefile:d["sf"], targetfile:d["tf"], external:d["ex"]} ;})
+var links = {{.Links}}.map(function (d) { return {source: d["s"], target:d["t"], sourcefile:d["sf"], targetfile:d["tf"], external:d["ex"]} ;})
+// {"s":"LengthSqr","t":"DistSqr","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"Length","t":"Dist","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"Normalize","t":"Length","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"Clamp","t":"Dot","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"Clamp","t":"Mult","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"Clamp","t":"Normalize","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"FromAngle","t":"Float","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"FromAngle","t":"math.Cos","sf":"vect.go","tf":"math","ex":true},
+// {"s":"FromAngle","t":"float64","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"FromAngle","t":"Float","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"FromAngle","t":"math.Sin","sf":"vect.go","tf":"math","ex":true},
+// {"s":"FromAngle","t":"float64","sf":"vect.go","tf":"vect.go","ex":false},
+// {"s":"Vect.MarshalJSON","t":"json.Marshal","sf":"json.go","tf":"json","ex":true}
 
 console.log(links)
 
@@ -165,13 +165,13 @@ svg.append("g").selectAll("circle")
   .attr("fill", function (k) {return color(legend[k].filename); })
   .attr("r", 6)
   .attr("cx", legend_x)
-  .attr("cy", function (k) { return legend[k].i * 20  + legend_y; });
+  .attr("cy", function (k) { return -legend[k].i * 20  + legend_y; });
 
 svg.append("g").selectAll("text")
   .data(Object.keys(legend))
   .enter().append("text")
   .attr("x", legend_x + 10)
-  .attr("y", function (k) { return legend[k].i * 20  + legend_y + 5; })
+  .attr("y", function (k) { return -legend[k].i * 20  + legend_y + 5; })
   .text(function (k) { return legend[k].filename; });
 
 

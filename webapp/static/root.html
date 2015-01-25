@@ -80,12 +80,12 @@ body {
 
 <body>
 <center>
-    <img src="gropher.png" style="opacity: 0.7">
+    <img src="/static/gropher.png" style="opacity: 0.7">
     <br>
     <h1> AppStract </h1>
-    <form class="searchform" >
-        <input class="searchfield" type="text" value="github.com/golang/go" onblur="if (this.value == '') {this.value = 'github.com/golang/go';}" />
-        <input class="searchbutton" type="button" value="Go" />
+    <form class="searchform" action="/view" method="post" >
+        <input class="searchfield" name="q" type="text" value="github.com/golang/go" onblur="if (this.value == '') {this.value = 'github.com/golang/go';}" />
+        <input class="searchbutton" type="submit" value="Go"  />
     </form>
     <p>
 Enter the url of a github repository to check out its <i>AppStract</i> ! <!-- or view the go standard library as a quick and interesting example. -->

@@ -1,38 +1,18 @@
-package main
+package appstract
 
 import (
-	"encoding/json"
-	"fmt"
+	// "encoding/json"
+	// "fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"regexp"
-	"strings"
+	// "strings"
 	"sync"
-	"time"
+	// "time"
+	"appengine"
+	"appengine/urlfetch"
 )
-
-var root = "https://github.com"
-
-func main() {
-	c := NewCrawler("vova616", "chipmunk")
-	c.Crawl()
-	time.Sleep(time.Second * 2)
-	c.Analysis.ConstructGraph()
-
-	bts, err := json.Marshal(c.Analysis.Repo)
-	logerr(err)
-	fmt.Println(string(bts))
-	// fmt.Println(c.Files)
-	// fmt.Println((*c.Srcs)[0])
-
-	// dirs, files := GetDirInfo(user_repo, "")
-	// ParseDir(user_repo, "")
-	// for i := 0; i < 20; i++ {
-	// time.Sleep(time.Second / 4)
-	// _ = os.Stdout.Sync()
-	// }
-}
 
 type Crawler struct {
 	user_repo string
@@ -51,43 +31,70 @@ func NewCrawler(user, repo string) Crawler {
 	return c
 }
 
-func (c Crawler) Crawl() {
-	c.ParseDir(c.user_repo, "")
+func (c Crawler) Crawl(r *http.Request) {
+	c.ParseDir(c.user_repo, "", r)
 }
 
 var mu = &sync.Mutex{}
 
-func (c Crawler) ParseDir(user_repo, path string) {
-	dirs, files := GetDirInfo(user_repo, path)
+func (c Crawler) ParseDir(user_repo, path string, r *http.Request) {
+	context := appengine.NewContext(r)
+	context.Infof("%v\n", path)
+	dirs, files := GetDirInfo(user_repo, path, r)
+	wg := sync.WaitGroup{}
 	for _, dir := range dirs {
-		go c.ParseDir(user_repo, dir)
+		wg.Add(1)
+		go func(dir string) {
+			c.ParseDir(user_repo, dir, r)
+			wg.Done()
+		}(dir)
 	}
 	for _, file_path := range files {
-		go c.ParseFile(user_repo, file_path)
+		wg.Add(1)
+
+		go func(file_path string) {
+			c.ParseFile(user_repo, file_path, r)
+			wg.Done()
+		}(file_path)
 	}
+	wg.Wait()
+	context.Infof("close %v\n", path)
+
 }
 
-func (c Crawler) ParseFile(user_repo, file_path string) {
+func (c Crawler) ParseFile(user_repo, file_path string, r *http.Request) {
 	// reset timer (lock mu)
 	//fmt.Println(file_path)
-	resp, err := http.Get("https://raw.githubusercontent.com/" + user_repo + "/master" + file_path)
+
+	context := appengine.NewContext(r)
+	context.Infof("  %v\n", file_path)
+	client := urlfetch.Client(context)
+	resp, err := client.Get("https://raw.githubusercontent.com/" + user_repo + "/master" + file_path)
 	logerr(err)
 	body, err := ioutil.ReadAll(resp.Body)
 	logerr(err)
 	resp.Body.Close()
-	split := strings.Split(file_path, "/")
-	filename := split[len(split)-1]
+	// split := strings.Split(file_path, "/")
+	// filename := split[len(split)-1]
 	src := string(body)
-	c.Analysis.AddFile(filename, src)
+	c.Analysis.AddFile(file_path, src)
+
+	context.Infof("  close %v\n", file_path)
 	// c.mu.Lock()
 	// *c.Files = append(*c.Files, filename)
 	// *c.Srcs = append(*c.Srcs, src)
 	// c.mu.Unlock()
 }
 
-func GetDirInfo(user_repo, path string) (dirs, files []string) {
-	resp, err := http.Get(root + user_repo + "/tree/master" + path)
+func GetDirInfo(user_repo, path string, r *http.Request) (dirs, files []string) {
+	c := appengine.NewContext(r)
+	client := urlfetch.Client(c)
+	resp, err := client.Get("https://github.com" + user_repo + "/tree/master" + path)
+	// resp, err := http.Get("https://github.com" + user_repo + "/tree/master" + path)
 	logerr(err)
+	if resp == nil {
+		return nil, nil
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	logerr(err)
 	html := string(body)

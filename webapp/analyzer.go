@@ -1,4 +1,4 @@
-package main
+package appstract
 
 import (
 	"fmt"
@@ -44,7 +44,7 @@ type Repository struct {
 }
 
 type Package struct {
-	Path, Name string
+	User, Repo, Path, Name string
 	// Fns        map[string]Function
 	Links *[]Link
 }
@@ -99,8 +99,10 @@ func (a Analysis) ConstructGraph() {
 
 func (a Analysis) AddToGraph(callerfilename string, f *ast.File) {
 	pkg := f.Name.Name
+	split := strings.Split(pkg, "/")
+	pkgpath := strings.Join(split[:len(split)-1], "/")
 	if _, ok := a.Repo.Pkgs[pkg]; !ok {
-		a.Repo.Pkgs[pkg] = Package{"path", pkg, &[]Link{}}
+		a.Repo.Pkgs[pkg] = Package{a.Repo.User, a.Repo.Name, pkgpath, pkg, &[]Link{}}
 	}
 	imports := make([]string, 0)
 	for _, decl := range f.Decls {
