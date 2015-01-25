@@ -7,7 +7,9 @@
 body {
     width: 600px;
     margin: 30px auto;
-    font: 100%/140% Arial, Helvetica, sans-serif;
+    /*font: 100%/140% Arial, Helvetica, sans-serif;*/
+    font-size: 14px;
+    font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif;
 }
 .credits {
     margin-bottom: 80px;
@@ -83,8 +85,11 @@ body {
     <img src="/static/gropher.png" style="opacity: 0.7">
     <br>
     <h1> AppStract </h1>
-    <form class="searchform" action="/view/" method="post" >
-        <input class="searchfield" name="q" type="text" value="github.com/golang/go" onblur="if (this.value == '') {this.value = 'github.com/golang/go';}" />
+    <form class="searchform" action="/view/" method="post" ><!-- 
+        <input class="searchfield" name="q" type="text" value="github.com/user/go" onblur="if (this.value == '') {this.value = 'github.com/golang/go';}" /> -->
+
+        
+        <input class="searchfield" name="q" type="text" value="https://github.com/user/repo" onfocus="if (this.value == 'https://github.com/user/repo') {this.value = '';}" onblur="if (this.value == '') {this.value = 'https://github.com/user/repo';}">
         <input class="searchbutton" type="submit" value="Go"  />
     </form>
     <p>
@@ -97,7 +102,7 @@ Enter the url of a github repository to check out its <i>AppStract !</i> <!-- or
 It can be an overwhelming experience to join an open source project that has lots of code in it. You might start by reading documentation or even dive into the code directly. But sometimes you just want a quick overview. <i>AppStract</i> provides the solution.
 </p>
 <p>
-<i>AppStract</i> analyzes go-code from a github repository. This analyses results in a graph that visualizes the structure of the go program. In the graph two functions are connected if one function calls another, thus creating an abstract for an entire go program.
+<i>AppStract</i> analyzes go code from a github repository. This analyses results in a graph that visualizes the structure of the go program. In the graph two functions are connected if one function calls another, thus creating an abstract for an entire go program.
 </p>
 
 <p style="opacity:0.7;position:fixed;bottom:0">
