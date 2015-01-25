@@ -39,7 +39,7 @@ circle {
 }
 
 text {
-  font: 10px sans-serif;
+  font: 11px sans-serif;
   pointer-events: none;
   text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
   /*text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, 0 -2px 0 #fff, -2px 0 0 #fff, 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;*/
@@ -51,29 +51,19 @@ text {
 
 <div id="packages">
 <!-- HTML TEMPLATE -->
-<a href='user/repo/pkg1'>pkg1</a>:<br>
--file1.go<br>
--file2.go<br>
--file3.go<br>
-<a href='user/repo/pkg2'>pkg2</a>:<br>
--file4.go<br>
--file5.go<br>
-<a href='user/repo/pkg3'>pkg3</a>:<br>
--file6.go<br>
--file7.go<br>
-<a href='user/repo/pkg4'>pkg4</a>:<br>
--file8.go<br>
--file9.go<br>
+{{range .Packages}}
+<a href='/view/{{.Path}}'>{{.Name}}</a><br>
+{{end}}
 
 </div>
 
-<script src="static/js/d3.v3.min.js"></script>
+<script src="/static/js/d3.v3.min.js"></script>
 <script>
 
 var color = d3.scale.category20();
 
-var width = 1024,
-    height = 800;
+var width = screen.width *0.9,
+    height = screen.height * 0.75;
 
 var legend_x = 20;
     legend_y = height-20;
@@ -85,7 +75,7 @@ var svg = d3.select("body")
     .attr("height", height);
 
 // HTML TEMPLATE
-var links = {{.Links}}.map(function (d) { return {source: d["s"], target:d["t"], sourcefile:d["sf"], targetfile:d["tf"], external:d["ex"]} ;})
+var links = {{.Package.Links}}.map(function (d) { return {source: d["s"], target:d["t"], sourcefile:d["sf"], targetfile:d["tf"], external:d["ex"]} ;})
 // {"s":"LengthSqr","t":"DistSqr","sf":"vect.go","tf":"vect.go","ex":false},
 // {"s":"Length","t":"Dist","sf":"vect.go","tf":"vect.go","ex":false},
 // {"s":"Normalize","t":"Length","sf":"vect.go","tf":"vect.go","ex":false},
