@@ -4,4 +4,4 @@ It can be an overwhelming experience to join an open source project that has a l
 
 <i>AppStract</i> analyzes go code from a github repository. This analyses results in a graph that visualizes the structure of the go program. In the graph two functions are connected if one function calls another, thus creating an abstract for the entire go program.
 
-Check it out at go-appstract.appspot.com.
+Check it out at [go-appstract.appspot.com](http://go-appstract.appspot.com).
