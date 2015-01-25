@@ -35,9 +35,6 @@ func (c Crawler) Crawl(context appengine.Context) {
 var mu = &sync.Mutex{}
 
 func (c Crawler) ParseDir(user_repo, path string, context appengine.Context) {
-	if len(path) >= len("/test") && path[:len("/test")] == "/test" {
-		return
-	}
 	dirs, files := GetDirInfo(user_repo, path, context)
 
 	// context.Infof("%v\n%v\n", path, dirs)
