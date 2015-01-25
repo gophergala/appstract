@@ -174,6 +174,9 @@ func (a Analysis) AddToGraph(callerfilename string, f *ast.File) {
 			} else if fun, ok := call.Fun.(*ast.Ident); ok {
 				call_id = fun.Name
 				fname = callerfilename
+				if call_id == "len" || call_id == "append" || call_id == "make" || call_id == "cap" {
+					return true
+				}
 			}
 			// call_ids = append(call_ids, call_id)
 			ls := a.Repo.Pkgs[pkg].Links
